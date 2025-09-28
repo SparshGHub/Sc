@@ -1,0 +1,47 @@
+pipeline {
+  agent any
+  options { timestamps() }
+  environment {
+    DOCKER_IMAGE = "sparshdockerman/scicalc:latest"
+  }
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+    stage('Verify Tooling') {
+      steps {
+        sh 'java -version'
+        sh 'mvn -v'
+        sh 'docker --version'
+      }
+    }
+    stage('Test') {
+      steps { sh 'mvn -B -q test' }
+      post { always { junit '**/target/surefire-reports/*.xml' } }
+    }
+    stage('Package') {
+      steps { sh 'mvn -B -q -DskipTests package' }
+      post { success { archiveArtifacts artifacts: 'target/*.jar', fingerprint: true } }
+    }
+    stage('Docker Build') {
+      steps { sh 'docker build -t "$DOCKER_IMAGE" .' }
+    }
+    stage('Docker Push (main only)') {
+      when { expression { env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main' } }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerHubCreds',
+                                          usernameVariable: 'sparshdockerman',
+                                          passwordVariable: 'DOCKERHUB_TOKEN')]) {
+          sh '''
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+            docker push "$DOCKER_IMAGE"
+            docker logout
+          '''
+        }
+      }
+    }
+  }
+  post {
+    always { echo 'CI pipeline finished.' }
+  }
+}
