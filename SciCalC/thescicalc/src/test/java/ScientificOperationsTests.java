@@ -46,7 +46,7 @@ public class ScientificOperationsTests {
         assertEquals(1.0, calculator.exponentiation(5, 0), 1e-9);
 
         //TEST TO CHECK FOR ILLEGAL ARGUMENT EXCEPTION
-        
+
         assertThrows(IllegalArgumentException.class, () -> {
             calculator.exponentiation(2, -3);
         });
@@ -67,5 +67,20 @@ public class ScientificOperationsTests {
         assertThrows(IllegalArgumentException.class, () -> {
             calculator.squareRoot(-16);
         });
-    }       
+    }      
+     
+    @Test
+        public void testFactorial() {
+            //TESTS TO CHECK FOR NORMAL FUNCTIONALITY
+            
+            assertEquals(120, calculator.factorial(5), 1e-9);
+            assertEquals(1, calculator.factorial(0), 1e-9);
+            assertEquals(1, calculator.factorial(1), 1e-9);
+    
+            //TEST TO CHECK FOR ILLEGAL ARGUMENT EXCEPTION
+            
+            assertThrows(IllegalArgumentException.class, () -> {
+                calculator.factorial(-5);
+            }); 
+        }
 }

@@ -39,4 +39,15 @@ public class Calculator {
     public double squareRoot(int a) {
         return sciOps.squareRoot(a);
     }
+    
+    public int factorial(int a){
+        if(a < 0){
+            throw new IllegalArgumentException("Factorial of negative numbers is not defined.");
+        }
+        int result = 1;
+        for(int i = 1; i <= a; i++){
+            result *= i;
+        }
+        return result;  
+    }
 }
