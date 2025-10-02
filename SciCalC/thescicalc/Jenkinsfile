@@ -5,6 +5,7 @@ pipeline {
     timeout(time: 60, unit: 'MINUTES') // avoid runaway builds
   }
   environment {
+    APP_DIR = 'SciCalc/thescicalc'
     DOCKER_IMAGE = "sparshdockerman/scicalc"
     CREDENTIALS_ID = "dockerHubCreds" // Jenkins credential id (username + token)
   }
