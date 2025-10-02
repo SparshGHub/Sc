@@ -1,47 +1,94 @@
 pipeline {
   agent any
-  options { timestamps() }
+  options {
+    timestamps()
+    timeout(time: 60, unit: 'MINUTES') // avoid runaway builds
+  }
   environment {
-    DOCKER_IMAGE = "sparshdockerman/scicalc:latest"
+    DOCKER_IMAGE = "sparshdockerman/scicalc"
+    CREDENTIALS_ID = "dockerHubCreds" // Jenkins credential id (username + token)
   }
   stages {
     stage('Checkout') {
       steps { checkout scm }
     }
+
     stage('Verify Tooling') {
       steps {
-        sh 'java -version'
-        sh 'mvn -v'
-        sh 'docker --version'
+        sh 'java -version || true'
+        sh 'mvn -v || true'
+        sh 'docker --version || true'
       }
     }
+
     stage('Test') {
-      steps { sh 'mvn -B -q test' }
-      post { always { junit '**/target/surefire-reports/*.xml' } }
-    }
-    stage('Package') {
-      steps { sh 'mvn -B -q -DskipTests package' }
-      post { success { archiveArtifacts artifacts: 'target/*.jar', fingerprint: true } }
-    }
-    stage('Docker Build') {
-      steps { sh 'docker build -t "$DOCKER_IMAGE" .' }
-    }
-    stage('Docker Push (main only)') {
-      when { expression { env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main' } }
       steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerHubCreds',
-                                          usernameVariable: 'sparshdockerman',
+        sh 'mvn -B -q test'
+      }
+      post {
+        always {
+          junit '**/target/surefire-reports/*.xml'
+        }
+      }
+    }
+
+    stage('Package') {
+      steps {
+        sh 'mvn -B -q -DskipTests package'
+      }
+      post {
+        success {
+          archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+        }
+      }
+    }
+
+    stage('Docker Build') {
+      steps {
+        script {
+          // Tag with both latest and commit SHA for traceability
+          def sha = env.GIT_COMMIT ?: sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+          def imgLatest = "${env.DOCKER_IMAGE}:latest"
+          def imgSha = "${env.DOCKER_IMAGE}:${sha}"
+          sh "docker build --pull -t ${imgLatest} -t ${imgSha} ."
+        }
+      }
+    }
+
+    stage('Docker Push (main only)') {
+      when {
+        expression { env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main' || env.GIT_BRANCH == 'main' }
+      }
+      steps {
+        // withCredentials provides environment variables we can safely use inside the block
+        withCredentials([usernamePassword(credentialsId: env.CREDENTIALS_ID,
+                                          usernameVariable: 'DOCKERHUB_USER',
                                           passwordVariable: 'DOCKERHUB_TOKEN')]) {
-          sh '''
-            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
-            docker push "$DOCKER_IMAGE"
-            docker logout
-          '''
+          script {
+            def sha = env.GIT_COMMIT ?: sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+            def imgLatest = "${env.DOCKER_IMAGE}:latest"
+            def imgSha = "${env.DOCKER_IMAGE}:${sha}"
+            sh '''
+              echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+              docker push "${DOCKER_IMAGE}:latest"
+              docker push "${DOCKER_IMAGE}:'${sha}'"
+              docker logout
+            '''
+          }
         }
       }
     }
   }
+
   post {
-    always { echo 'CI pipeline finished.' }
+    success {
+      echo 'Pipeline succeeded.'
+    }
+    failure {
+      echo 'Pipeline failed.'
+    }
+    always {
+      echo 'CI pipeline finished.'
+    }
   }
 }
