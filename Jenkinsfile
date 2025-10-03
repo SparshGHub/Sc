@@ -18,6 +18,7 @@ pipeline {
         sh 'docker --version || true'
       }
     }
+
     
     stage('Test') {
       steps {
