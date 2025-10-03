@@ -18,7 +18,20 @@ pipeline {
         sh 'docker --version || true'
       }
     }
-
+    stage('Repo Layout Check') {
+      steps {
+        sh '''
+          echo "PWD:"; pwd
+          echo "Repo root is:"; git rev-parse --show-toplevel || true
+          echo "--- top level ---"; ls -la
+          echo "--- SciCalc ---"; ls -la SciCalc || true
+          echo "--- thescicalc ---"; ls -la SciCalc/thescicalc || true
+          echo "--- find pom.xml (maxdepth 4) ---"
+          find . -maxdepth 4 -name pom.xml -print
+        '''
+      }
+    }
+    
     stage('Test') {
       steps {
         dir(env.APP_DIR) {
