@@ -1,0 +1,41 @@
+---
+- name: Deploy Scientific Calculator Container
+  hosts: production
+  become: yes
+  vars:
+    app_name: scicalc
+    image_name: sparshdockerman/scicalc:latest
+    container_port: 8080
+    host_port: 8080
+
+  tasks:
+    - name: Ensure Docker is installed
+      ansible.builtin.package:
+        name: docker.io
+        state: present
+
+    - name: Ensure Docker service is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Pull latest Docker image
+      community.docker.docker_image:
+        name: "{{ image_name }}"
+        source: pull
+
+    - name: Stop existing container if running
+      community.docker.docker_container:
+        name: "{{ app_name }}"
+        state: absent
+
+    - name: Run new container
+      community.docker.docker_container:
+        name: "{{ app_name }}"
+        image: "{{ image_name }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ host_port }}:{{ container_port }}"
+
