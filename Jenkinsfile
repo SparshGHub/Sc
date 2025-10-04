@@ -1,80 +1,92 @@
 pipeline {
   agent any
-  options { timestamps(); timeout(time: 60, unit: 'MINUTES') }
+
+  options {
+    timestamps()
+    timeout(time: 60, unit: 'MINUTES')
+  }
 
   environment {
-    APP_DIR = 'SciCalC/thescicalc'
-    DOCKER_IMAGE = 'sparshdockerman/scicalc'
-    CREDENTIALS_ID = 'dockerHubCreds'
+    DOCKER_IMAGE = "sparshdockerman/scicalc"
+    CREDENTIALS_ID = "dockerHubCreds"
   }
 
   stages {
-    stage('Checkout') { steps { checkout scm } }
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
 
     stage('Verify Tooling') {
       steps {
         sh 'java -version || true'
         sh 'mvn -v || true'
         sh 'docker --version || true'
+        sh 'ansible --version || true'
       }
     }
 
-    
     stage('Test') {
       steps {
-        dir(env.APP_DIR) {
+        dir('SciCalC/thescicalc') {
           sh 'mvn -B -q test'
         }
       }
       post {
         always {
-          junit "${env.APP_DIR}/**/target/surefire-reports/*.xml"
+          junit 'SciCalC/thescicalc/target/surefire-reports/*.xml'
         }
       }
     }
 
     stage('Package') {
       steps {
-        dir(env.APP_DIR) {
+        dir('SciCalC/thescicalc') {
           sh 'mvn -B -q -DskipTests package'
         }
       }
       post {
         success {
-          archiveArtifacts artifacts: "${env.APP_DIR}/target/*.jar", fingerprint: true
+          archiveArtifacts artifacts: 'SciCalC/thescicalc/target/*.jar', fingerprint: true
         }
       }
     }
 
-    stage('Docker Build') {
+    stage('Docker Build & Push') {
       steps {
         script {
           def sha = env.GIT_COMMIT ?: sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-          // Build using the subfolder as the Docker context; Dockerfile also lives there
-          sh """
-            docker build --pull \
-              -f ${env.APP_DIR}/Dockerfile \
-              -t ${env.DOCKER_IMAGE}:latest \
-              -t ${env.DOCKER_IMAGE}:${sha} \
-              ${env.APP_DIR}
-          """
+          def imgLatest = "${DOCKER_IMAGE}:latest"
+          def imgSha = "${DOCKER_IMAGE}:${sha}"
+
+          sh "docker build -f SciCalC/thescicalc/Dockerfile -t ${imgLatest} -t ${imgSha} SciCalC/thescicalc"
+
+          withCredentials([usernamePassword(credentialsId: env.CREDENTIALS_ID,
+                                            usernameVariable: 'DOCKERHUB_USER',
+                                            passwordVariable: 'DOCKERHUB_TOKEN')]) {
+            sh '''
+              echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+              docker push ${DOCKER_IMAGE}:latest
+              docker logout
+            '''
+          }
         }
       }
     }
 
-    stage('Docker Push (main only)') {
-      when { expression { env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'origin/main' || env.GIT_BRANCH == 'main' } }
+    stage('Deploy with Ansible') {
       steps {
-        withCredentials([usernamePassword(credentialsId: env.CREDENTIALS_ID,
-                                          usernameVariable: 'DOCKERHUB_USER',
-                                          passwordVariable: 'DOCKERHUB_TOKEN')]) {
-          script {
-            def sha = env.GIT_COMMIT ?: sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+        dir('SciCalC/thescicalc/ansible') {
+          withCredentials([usernamePassword(credentialsId: env.CREDENTIALS_ID,
+                                            usernameVariable: 'DOCKERHUB_USER',
+                                            passwordVariable: 'DOCKERHUB_TOKEN')]) {
             sh '''
-              echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
-              docker push "${DOCKER_IMAGE}:latest"
-              docker push "${DOCKER_IMAGE}:'${sha}'"
-              docker logout
+              echo "[INFO] Starting Ansible deployment..."
+              ansible-playbook -i inventory deploy.yml \
+                --extra-vars "docker_image=${DOCKER_IMAGE}:latest docker_user=$DOCKERHUB_USER docker_token=$DOCKERHUB_TOKEN"
+              echo "[INFO] Ansible deployment complete."
             '''
           }
         }
@@ -82,5 +94,15 @@ pipeline {
     }
   }
 
-  post { always { echo 'CI pipeline finished.' } }
+  post {
+    success {
+      echo '✅ CI/CD pipeline completed successfully!'
+    }
+    failure {
+      echo '❌ Pipeline failed — check logs!'
+    }
+    always {
+      echo 'CI/CD pipeline finished.'
+    }
+  }
 }
