@@ -14,8 +14,8 @@ public class App {
         System.out.println("4. Division");
         System.out.println("5. Logarithm");
         System.out.println("6. Exponentiation");
-        System.out.println("7. SquareRoot");
-        System.out.println("8. Factorial");
+        // System.out.println("7. SquareRoot");
+        // System.out.println("8. Factorial");
         System.out.println("9. Exit\n");
     }
 
