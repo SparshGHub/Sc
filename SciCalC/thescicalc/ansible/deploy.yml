@@ -21,21 +21,15 @@
         enabled: true
 
     - name: Pull latest Docker image
-      community.docker.docker_image:
-        name: "{{ image_name }}"
-        source: pull
+      ansible.builtin.shell: |
+        docker pull {{ image_name }}
 
     - name: Stop existing container if running
-      community.docker.docker_container:
-        name: "{{ app_name }}"
-        state: absent
+      ansible.builtin.shell: |
+        docker stop {{ app_name }} || true
+        docker rm {{ app_name }} || true
 
     - name: Run new container
-      community.docker.docker_container:
-        name: "{{ app_name }}"
-        image: "{{ image_name }}"
-        state: started
-        restart_policy: always
-        ports:
-          - "{{ host_port }}:{{ container_port }}"
+      ansible.builtin.shell: |
+        docker run -d --name {{ app_name }} -p {{ host_port }}:{{ container_port }} {{ image_name }}
 
