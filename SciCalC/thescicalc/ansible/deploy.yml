@@ -8,7 +8,7 @@
     app_name: scicalc
     image_name: sparshdockerman/scicalc:latest
     container_port: 8080
-    host_port: 8080
+    host_port: 9090
 
   tasks:
     - name: Check if Docker is already installed
