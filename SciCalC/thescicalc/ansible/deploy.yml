@@ -11,9 +11,8 @@
     host_port: 8080
 
   tasks:
-
     - name: Check if Docker is already installed
-      ansible.builtin.command: docker --version
+      ansible.builtin.shell: docker --version
       register: docker_check
       ignore_errors: yes
 
