@@ -39,24 +39,33 @@
         echo "Pulling image {{ image_name }}..."
         docker pull {{ image_name }}
 
-    - name: Stop and remove existing container if running
+    # NEW: stop anything already bound to the chosen host port (e.g., 9090)
+    - name: Stop and remove any container using host port
       shell: |
-        echo "Checking for existing container..."
+        echo "Checking for containers using port {{ host_port }}..."
+        ids=$(docker ps --filter "publish={{ host_port }}" -q)
+        if [ -n "$ids" ]; then
+          echo "Stopping containers on port {{ host_port }}..."
+          docker stop $ids
+          docker rm $ids
+        fi
+
+    # Existing logic: stop/remove by known name
+    - name: Stop and remove existing container if running (by name)
+      shell: |
+        echo "Checking for existing container named {{ app_name }}..."
         if [ "$(docker ps -q -f name={{ app_name }})" ]; then
-          echo "Stopping container {{ app_name }}..."
           docker stop {{ app_name }}
         fi
         if [ "$(docker ps -aq -f name={{ app_name }})" ]; then
-          echo "Removing container {{ app_name }}..."
           docker rm {{ app_name }}
         fi
 
+    # Interactive CLI run (kept as-is) — no ports needed for CLI
     - name: Run new CLI container interactively
       shell: |
         echo "Starting interactive container {{ app_name }}..."
-        docker run -it --name {{ app_name }} \
-          --rm \
-          {{ image_name }} <<EOF
+        docker run -it --name {{ app_name }} --rm {{ image_name }} <<'EOF'
         echo "Scientific Calculator CLI started"
         exit
         EOF
