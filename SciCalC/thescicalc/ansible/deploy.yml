@@ -1,5 +1,5 @@
 ---
-- name: Deploy Scientific Calculator CLI Application
+- name: Deploy Scientific Calculator Container
   hosts: localhost
   connection: local
   become: yes
@@ -7,46 +7,70 @@
   vars:
     app_name: scicalc
     image_name: sparshdockerman/scicalc:latest
+    container_port: 8080
+    host_port: 9090
 
   tasks:
-    - name: Ensure Docker is installed
-      ansible.builtin.apt:
-        name: docker.io
-        state: present
-        update_cache: yes
+    - name: Check if Docker is already installed
+      shell: "docker --version"
+      register: docker_check
+      ignore_errors: yes
+
+    - name: Install Docker if not installed
+      shell: |
+        apt-get update -y
+        apt-get install -y ca-certificates curl gnupg lsb-release
+        mkdir -p /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+          https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+        apt-get update -y
+        apt-get install -y docker-ce docker-ce-cli containerd.io
+      when: docker_check.rc != 0
 
     - name: Ensure Docker service is running
-      ansible.builtin.service:
+      service:
         name: docker
         state: started
         enabled: true
 
-    - name: Pull the latest image
-      ansible.builtin.shell: |
-        echo "🔄 Pulling latest image: {{ image_name }}"
+    - name: Pull latest Docker image
+      shell: |
+        echo "Pulling image {{ image_name }}..."
         docker pull {{ image_name }}
 
     - name: Stop and remove existing container if running
-      ansible.builtin.shell: |
-        echo "🛑 Checking for existing container..."
+      shell: |
+        echo "Checking for existing container..."
         if [ "$(docker ps -q -f name={{ app_name }})" ]; then
-          echo "Stopping container..."
+          echo "Stopping container {{ app_name }}..."
           docker stop {{ app_name }}
         fi
         if [ "$(docker ps -aq -f name={{ app_name }})" ]; then
-          echo "Removing container..."
+          echo "Removing container {{ app_name }}..."
           docker rm {{ app_name }}
         fi
 
-    - name: Run new container interactively
-      ansible.builtin.shell: |
-        echo "🚀 Starting interactive Scientific Calculator..."
-        docker run -it --name {{ app_name }} --rm {{ image_name }}
-      args:
-        executable: /bin/bash
+    - name: Run new CLI container interactively
+      shell: |
+        echo "Starting interactive container {{ app_name }}..."
+        docker run -it --name {{ app_name }} \
+          --rm \
+          {{ image_name }} <<EOF
+        echo "Scientific Calculator CLI started"
+        exit
+        EOF
       register: run_output
       ignore_errors: yes
 
-    - name: Display container output (if any)
-      ansible.builtin.debug:
-        msg: "{{ run_output.stdout_lines }}"
+    - name: Verify running containers
+      shell: "docker ps --filter name={{ app_name }}"
+      register: container_status
+
+    - name: Display container status and CLI output
+      debug:
+        msg:
+          - "Container status:"
+          - "{{ container_status.stdout_lines }}"
+          - "CLI output:"
+          - "{{ run_output.stdout_lines }}"
