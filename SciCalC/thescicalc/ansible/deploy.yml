@@ -3,10 +3,11 @@
   hosts: localhost
   connection: local
   become: yes
+  gather_facts: false
 
   vars:
     app_name: scicalc
-    image_name: sparshdockerman/scicalc:latest
+    image_name: "sparshdockerman/scicalc:latest"
     container_port: 8080
     host_port: 8080
 
@@ -24,33 +25,41 @@
 
     - name: Pull the latest Docker image
       ansible.builtin.shell: |
-        echo  Pulling image {{ image_name }}..."
-        docker pull {{ image_name }}
+        echo "Pulling image {{ image_name }}..."
+        docker pull "{{ image_name }}"
+      args:
+        executable: /bin/bash
 
     - name: Stop and remove existing container if running
       ansible.builtin.shell: |
-        echo  Checking for existing container..."
+        echo "Checking for existing container..."
         if [ "$(docker ps -q -f name={{ app_name }})" ]; then
-          echo  Stopping container {{ app_name }}..."
-          docker stop {{ app_name }}
+          echo "Stopping container {{ app_name }}..."
+          docker stop "{{ app_name }}"
         fi
         if [ "$(docker ps -aq -f name={{ app_name }})" ]; then
-          echo  Removing container {{ app_name }}..."
-          docker rm {{ app_name }}
+          echo "Removing container {{ app_name }}..."
+          docker rm "{{ app_name }}"
         fi
+      args:
+        executable: /bin/bash
 
     - name: Run new container from the latest image
       ansible.builtin.shell: |
-        echo  Starting container {{ app_name }}..."
-        docker run -d --name {{ app_name }} \
-          -p {{ host_port }}:{{ container_port }} \
+        echo "Starting container {{ app_name }}..."
+        docker run -d --name "{{ app_name }}" \
+          -p "{{ host_port }}:{{ container_port }}" \
           --restart unless-stopped \
-          {{ image_name }}
+          "{{ image_name }}"
+      args:
+        executable: /bin/bash
 
     - name: Verify that the new container is running
       ansible.builtin.shell: |
-        echo  Running containers:"
-        docker ps | grep {{ app_name }}
+        echo "Running containers:"
+        docker ps | grep "{{ app_name }}"
+      args:
+        executable: /bin/bash
       register: container_status
 
     - name: Display container verification output
