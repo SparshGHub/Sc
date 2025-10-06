@@ -51,7 +51,7 @@ This opens the **Scientific Calculator CLI** in your terminal.
 If you prefer to run directly from source:
 
 ```bash
-git clone https://github.com/<your-username>/SciCalC.git
+git clone https://github.com/SparshGHub/SciCalC.git
 cd SciCalC/thescicalc
 mvn clean package
 java -jar target/thescicalc-1.0.jar
@@ -141,27 +141,6 @@ docker run -it --name $APP_NAME --rm $IMAGE_NAME
 
 ---
 
-## Example CLI Session
-
-```
-Welcome to Scientific Calculator!
-Enter an operation (type 'exit' to quit)
-
-> add 12 8
-Result: 20
-
-> sqrt 81
-Result: 9.0
-
-> log 100
-Result: 2.0
-
-> exit
-Thank you for using the Scientific Calculator.
-```
-
----
-
 ## Project Structure
 
 ```
@@ -170,11 +149,11 @@ SciCalC/
 ├── thescicalc/
 │   ├── src/                # Java source code
 │   ├── target/             # Compiled output (JAR files)
-│   ├── pom.xml             # Maven configuration
 │   ├── Dockerfile          # Docker build instructions
 │   └── ansible/            # Deployment scripts
-│
+├── pom.xml                 # Maven configuration
 ├── RUN.sh                  # Helper script to run the calculator
+├── Jenkinsfile             # Jenkins Pipeline
 └── README.md               # Project documentation
 ```
 
@@ -188,4 +167,3 @@ This project demonstrates how a simple CLI application can be transformed into a
 - Containerization (Docker)
 - Infrastructure automation (Ansible)
 
-It serves as a practical example of **DevOps principles applied to software engineering**.
