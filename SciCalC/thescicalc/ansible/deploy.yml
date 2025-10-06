@@ -1,7 +1,9 @@
 ---
 - name: Deploy Scientific Calculator Container
-  hosts: production
+  hosts: localhost
+  connection: local
   become: yes
+
   vars:
     app_name: scicalc
     image_name: sparshdockerman/scicalc:latest
@@ -20,16 +22,37 @@
         state: started
         enabled: true
 
-    - name: Pull latest Docker image
+    - name: Pull the latest Docker image
       ansible.builtin.shell: |
+        echo  Pulling image {{ image_name }}..."
         docker pull {{ image_name }}
 
-    - name: Stop existing container if running
+    - name: Stop and remove existing container if running
       ansible.builtin.shell: |
-        docker stop {{ app_name }} || true
-        docker rm {{ app_name }} || true
+        echo  Checking for existing container..."
+        if [ "$(docker ps -q -f name={{ app_name }})" ]; then
+          echo  Stopping container {{ app_name }}..."
+          docker stop {{ app_name }}
+        fi
+        if [ "$(docker ps -aq -f name={{ app_name }})" ]; then
+          echo  Removing container {{ app_name }}..."
+          docker rm {{ app_name }}
+        fi
 
-    - name: Run new container
+    - name: Run new container from the latest image
       ansible.builtin.shell: |
-        docker run -d --name {{ app_name }} -p {{ host_port }}:{{ container_port }} {{ image_name }}
+        echo  Starting container {{ app_name }}..."
+        docker run -d --name {{ app_name }} \
+          -p {{ host_port }}:{{ container_port }} \
+          --restart unless-stopped \
+          {{ image_name }}
 
+    - name: Verify that the new container is running
+      ansible.builtin.shell: |
+        echo  Running containers:"
+        docker ps | grep {{ app_name }}
+      register: container_status
+
+    - name: Display container verification output
+      ansible.builtin.debug:
+        msg: "{{ container_status.stdout_lines }}"
