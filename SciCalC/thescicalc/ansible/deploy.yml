@@ -12,10 +12,11 @@
     host_port: 8080
 
   tasks:
-    - name: Ensure Docker is installed
-      ansible.builtin.package:
+    - name: Ensure Docker is installed (Ubuntu/Debian)
+      ansible.builtin.apt:
         name: docker.io
         state: present
+        update_cache: yes
 
     - name: Ensure Docker service is running
       ansible.builtin.service:
