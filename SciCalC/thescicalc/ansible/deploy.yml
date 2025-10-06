@@ -12,13 +12,12 @@
 
   tasks:
     - name: Check if Docker is already installed
-      ansible.builtin.shell: |
-        docker --version
+      shell: "docker --version"
       register: docker_check
       ignore_errors: yes
 
-    - name: Install Docker from official repo (if not installed)
-      ansible.builtin.shell: |
+    - name: Install Docker if not installed
+      shell: |
         apt-get update -y
         apt-get install -y ca-certificates curl gnupg lsb-release
         mkdir -p /etc/apt/keyrings
@@ -30,18 +29,18 @@
       when: docker_check.rc != 0
 
     - name: Ensure Docker service is running
-      ansible.builtin.service:
+      service:
         name: docker
         state: started
         enabled: true
 
     - name: Pull latest Docker image
-      ansible.builtin.shell: |
+      shell: |
         echo "Pulling image {{ image_name }}..."
         docker pull {{ image_name }}
 
     - name: Stop and remove existing container if running
-      ansible.builtin.shell: |
+      shell: |
         echo "Checking for existing container..."
         if [ "$(docker ps -q -f name={{ app_name }})" ]; then
           echo "Stopping container {{ app_name }}..."
@@ -53,18 +52,17 @@
         fi
 
     - name: Run new container
-      ansible.builtin.shell: |
+      shell: |
         echo "Starting container {{ app_name }}..."
         docker run -d --name {{ app_name }} \
           -p {{ host_port }}:{{ container_port }} \
           --restart unless-stopped \
           {{ image_name }}
 
-    - name: Verify container status
-      ansible.builtin.shell: |
-        docker ps --filter "name={{ app_name }}"
+    - name: Verify running container
+      shell: "docker ps --filter name={{ app_name }}"
       register: container_status
 
-    - name: Display running container info
-      ansible.builtin.debug:
+    - name: Display running container information
+      debug:
         msg: "{{ container_status.stdout_lines }}"
