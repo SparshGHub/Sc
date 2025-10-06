@@ -19,7 +19,7 @@ pipeline {
       }
     }
 
-    stage('Verify Tooling') {
+    stage('Verify Tools') {
       steps {
         sh 'java -version || true'
         sh 'mvn -v || true'
@@ -31,7 +31,7 @@ pipeline {
     stage('Test') {
       steps {
         dir('SciCalC/thescicalc') {
-          sh 'mvn -B -q test'
+          sh 'mvn -B test'
         }
       }
       post {
@@ -44,7 +44,7 @@ pipeline {
     stage('Package') {
       steps {
         dir('SciCalC/thescicalc') {
-          sh 'mvn -B -q -DskipTests package'
+          sh 'mvn -B package'
         }
       }
       post {
@@ -83,10 +83,8 @@ pipeline {
                                             usernameVariable: 'DOCKERHUB_USER',
                                             passwordVariable: 'DOCKERHUB_TOKEN')]) {
             sh '''
-              echo "[INFO] Starting Ansible deployment..."
               ansible-playbook -i inventory deploy.yml \
                 --extra-vars "docker_image=${DOCKER_IMAGE}:latest docker_user=$DOCKERHUB_USER docker_token=$DOCKERHUB_TOKEN"
-              echo "[INFO] Ansible deployment complete."
             '''
           }
         }
@@ -96,13 +94,13 @@ pipeline {
 
   post {
     success {
-      echo '✅ CI/CD pipeline completed successfully!'
+      echo 'Build and deployment successful.'
     }
     failure {
-      echo '❌ Pipeline failed — check logs!'
+      echo 'Build or deployment failed. Check console output.'
     }
     always {
-      echo 'CI/CD pipeline finished.'
+      echo 'Pipeline completed.'
     }
   }
 }
