@@ -168,3 +168,4 @@ This project demonstrates how a simple CLI application can be transformed into a
 - Infrastructure automation (Ansible)
 
 Another Test Trigger
+Another Test Trigger
