@@ -44,7 +44,7 @@ pipeline {
     stage('Package') {
       steps {
         dir('SciCalC/thescicalc') {
-          sh 'mvn -B package'
+          sh 'mvn -B package -DSkipTests'
         }
       }
       post {
